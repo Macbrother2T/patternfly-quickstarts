@@ -3,12 +3,13 @@ import * as fs from "fs";
 import * as path from "path";
 import { load as yamlLoad } from "js-yaml";
 import { Base64 } from 'js-base64';
-
 import { CommandAction, ICommand } from "./app/model";
+import { URI } from 'vscode-uri';
 
 export default class ViewLoader {
   private readonly _panel: vscode.WebviewPanel | undefined;
-  private readonly _extensionPath: string;
+  // @ts-ignore
+  private readonly _extensionPath: URI;
   private _disposables: vscode.Disposable[] = [];
 
   public update(text: string, fileName: string) {
@@ -18,7 +19,7 @@ export default class ViewLoader {
     }
   }
 
-  constructor(text: string, fileName: string, extensionPath: string) {
+  constructor(text: string, fileName: string, extensionPath: URI) {
     this._extensionPath = extensionPath;
 
     const encodedText = this.encodeContent(text, fileName);
@@ -30,7 +31,7 @@ export default class ViewLoader {
         {
           enableScripts: true,
           localResourceRoots: [
-            vscode.Uri.file(path.join(extensionPath, "quickstartsPreview")),
+            vscode.Uri.parse(path.join(extensionPath.toString(), "dist")),
           ],
         }
       );
@@ -53,10 +54,14 @@ export default class ViewLoader {
 
   private getWebviewContent(config: string, filePath: string): string {
     // Local path to main script run in the webview
-    const reactAppPathOnDisk = vscode.Uri.file(
-      path.join(this._extensionPath, "quickstartsPreview", "quickstartsPreview.js")
-    );
-    const reactAppUri = reactAppPathOnDisk.with({ scheme: "vscode-resource" });
+    // const reactAppPathOnDisk = vscode.Uri.parse(
+    //   path.join(this._extensionPath.toString(), "dist", "quickStarts.js")
+    // );
+    // const reactAppUri = reactAppPathOnDisk.with({ scheme: "vscode-resource" });
+    // <script src="${reactAppUri}"></script>
+
+    // fetch: https://cdn.jsdelivr.net/gh/patternfly/patternfly-quickstarts@main/packages/vscode/dist-cdn/quickStarts.js
+
     const html = `<!DOCTYPE html>
     <html lang="en">
     <head>
@@ -67,7 +72,7 @@ export default class ViewLoader {
         <meta http-equiv="Content-Security-Policy"
                     content="default-src 'self';
                              img-src https:;
-                             script-src 'unsafe-eval' 'unsafe-inline' vscode-resource:;
+                             script-src 'unsafe-eval' https://cdn.jsdelivr.net/gh/patternfly/patternfly-quickstarts@main/packages/vscode/dist-cdn/quickStarts.js 'unsafe-inline' vscode-resource:;
                              style-src vscode-resource: 'unsafe-inline';">
 
         <script>
@@ -78,8 +83,7 @@ export default class ViewLoader {
     </head>
     <body>
         <div id="root"></div>
-
-        <script src="${reactAppUri}"></script>
+        <script src="https://cdn.jsdelivr.net/gh/patternfly/patternfly-quickstarts@main/packages/vscode/dist-cdn/quickStarts.js"></script>
     </body>
     </html>`;
     return html;
@@ -92,6 +96,7 @@ export default class ViewLoader {
     return Base64.encode(text);
   }
 
+  // @ts-ignore
   private saveFileContent(fileUri: vscode.Uri, config: string) {
     if (fs.existsSync(fileUri.fsPath)) {
       const content: string = JSON.stringify(config);
